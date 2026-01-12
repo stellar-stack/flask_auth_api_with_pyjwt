@@ -4,12 +4,8 @@ import jwt
 import datetime
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key_here'
 
-# In-memory user store (replace with DB in production)
-users = {}
-
-# REGISTER API
+# Registration API
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
@@ -41,7 +37,7 @@ def register():
     }), 201
 
 
-# LOGIN API
+# Login API
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
@@ -88,3 +84,4 @@ def login():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
