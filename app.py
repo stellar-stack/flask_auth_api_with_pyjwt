@@ -17,6 +17,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(100), nullable=False)
@@ -27,8 +29,12 @@ class User(db.Model):
     user_type = db.Column(db.String(20), default='AppUser')
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
+
+
 with app.app_context():
     db.create_all()
+
+
 
 class RegisterSchema(Schema):
     full_name = fields.String(required=True, validate=validate.Length(min=2))
@@ -36,6 +42,8 @@ class RegisterSchema(Schema):
     password = fields.String(required=True, validate=validate.Length(min=6))
     country_code = fields.Integer(required=False)
     phone_number = fields.String(required=False, validate=validate.Length(min=6))
+
+
 
 class LoginSchema(Schema):
     email = fields.Email(required=True)
@@ -52,6 +60,8 @@ def handle_validation_error(e):
         "errors": e.messages,
         "code": 400
     }), 400
+
+
 
 @app.errorhandler(404)
 def not_found(e):
@@ -71,6 +81,7 @@ def internal_error(e):
         "code": 500
     }), 500
 
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json or {}
@@ -87,6 +98,7 @@ def register():
             "code": 400
         }), 400
 
+    
     user = User(
         full_name=validated_data['full_name'],
         email=validated_data['email'],
@@ -156,3 +168,4 @@ def login():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
