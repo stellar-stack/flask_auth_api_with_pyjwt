@@ -1,17 +1,42 @@
 from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import datetime
+import os
 
 app = Flask(__name__)
 
-# Registration API
+
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_dev_secret')
+
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    full_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
+    country_code = db.Column(db.Integer)
+    phone_number = db.Column(db.String(20))
+    user_type = db.Column(db.String(20), default='AppUser')
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+
+with app.app_context():
+    db.create_all()
+
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
-    email = data.get('email')
 
-    if email in users:
+    if User.query.filter_by(email=data['email']).first():
         return jsonify({
             "message": "Account already exists.",
             "status": 0,
@@ -19,15 +44,16 @@ def register():
             "code": 400
         }), 400
 
-    users[email] = {
-        "full_name": data.get('full_name'),
-        "email": email,
-        "country_code": data.get('country_code'),
-        "phone_number": data.get('phone_number'),
-        "password": generate_password_hash(data.get('password')),
-        "user_type": "AppUser",
-        "public_id": len(users) + 1
-    }
+    user = User(
+        full_name=data['full_name'],
+        email=data['email'],
+        password=generate_password_hash(data['password']),
+        country_code=data.get('country_code'),
+        phone_number=data.get('phone_number')
+    )
+
+    db.session.add(user)
+    db.session.commit()
 
     return jsonify({
         "message": "Registered successfully.",
@@ -37,14 +63,10 @@ def register():
     }), 201
 
 
-# Login API
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
-    email = data.get('email')
-    password = data.get('password')
-
-    user = users.get(email)
+    user = User.query.filter_by(email=data['email']).first()
 
     if not user:
         return jsonify({
@@ -54,7 +76,7 @@ def login():
             "code": 401
         }), 401
 
-    if not check_password_hash(user['password'], password):
+    if not check_password_hash(user.password, data['password']):
         return jsonify({
             "message": "Invalid password.",
             "status": 0,
@@ -63,8 +85,8 @@ def login():
         }), 401
 
     token = jwt.encode({
-        "public_id": user['public_id'],
-        "User_Type": user['user_type'],
+        "public_id": user.id,
+        "User_Type": user.user_type,
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)
     }, app.config['SECRET_KEY'], algorithm="HS256")
 
@@ -73,10 +95,10 @@ def login():
         "status": 1,
         "token": token,
         "data": {
-            "country_code": user['country_code'],
-            "email": user['email'],
-            "full_name": user['full_name'],
-            "phone_number": user['phone_number']
+            "country_code": user.country_code,
+            "email": user.email,
+            "full_name": user.full_name,
+            "phone_number": user.phone_number
         },
         "code": 200
     }), 200
@@ -84,4 +106,3 @@ def login():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
